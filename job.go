@@ -94,6 +94,7 @@ type JobResponse struct {
 	Jobs             []InnerJob  `json:"jobs"`
 	PrimaryView      *ViewData   `json:"primaryView"`
 	Views            []ViewData  `json:"views"`
+	ActiveConfigurations []InnerJob  `json:"activeConfigurations"`
 }
 
 func (j *Job) parentBase() string {
@@ -252,6 +253,30 @@ func (j *Job) GetInnerJobs() ([]*Job, error) {
 	jobs := make([]*Job, len(j.Raw.Jobs))
 	for i, job := range j.Raw.Jobs {
 		ji, err := j.GetInnerJob(job.Name)
+		if err != nil {
+			return nil, err
+		}
+		jobs[i] = ji
+	}
+	return jobs, nil
+}
+
+func (j *Job) GetActiveConfiguration(id string) (*Job, error) {
+	job := Job{Jenkins: j.Jenkins, Raw: new(JobResponse), Base: j.Base + "/" + url.QueryEscape(id)}
+	status, err := job.Poll()
+	if err != nil {
+		return nil, err
+	}
+	if status == 200 {
+		return &job, nil
+	}
+	return nil, errors.New(strconv.Itoa(status))
+}
+
+func (j *Job) GetActiveConfigurations() ([]*Job, error) {
+	jobs := make([]*Job, len(j.Raw.ActiveConfigurations))
+	for i, job := range j.Raw.ActiveConfigurations {
+		ji, err := j.GetActiveConfiguration(job.Name)
 		if err != nil {
 			return nil, err
 		}
